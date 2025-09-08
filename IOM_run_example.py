@@ -35,7 +35,7 @@ Run_attributes['waterworks_table'] = r'c:\Users\vpk410\Documents\GW_allocation_m
 Run_attributes['waterworks_shp'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\Waterworks.shp' 
 
 Run_attributes['wsa_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\water_supply_areas.csv'
-Run_attributes['wsa_shp'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\WSA.shp'
+Run_attributes['wsa_shp'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\WSA_capital.shp'
 
 Run_attributes['wf_ww_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WF_WW.csv'
 Run_attributes['ww_wsa_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WW_WSA.csv'
@@ -48,7 +48,7 @@ Run_attributes['gw_ind_2_in_use'] = False
 Run_attributes['savepath'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Results'
 
 Run_attributes['solvername'] = 'cplex'
-Run_attributes['solverpath_exe'] = r'c:\Program Files\IBM\ILOG\CPLEX_Studio2211\cplex\bin\x64_win64\cplex.exe'
+Run_attributes['solverpath_exe'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\cplex.exe'
 #%%
 IOM_run = IOM(Run_attributes)
 #%%
@@ -67,5 +67,11 @@ IOM_run = IOM_run.save_results()
 IOM_run.plot_catch_basemap()
 IOM_run.plot_wsa_basemap()
 #%%
+IOM_run.wf_ww_basemap()
+#%%
 IOM_run.plot_dvar_ts(['Allocation_Ind_3168'])
 IOM_run.plot_SP_ts(['SP_wb_WW_Storage_5780'])
+#%%
+IOM_run.plot_dvar_bar_shp_t_av('Allocation_HH_',IOM_run.nwsa , unit = '1000 m3/week', shapefile = IOM_run.wsa_shp)
+#%%
+IOM_run.plot_SP_bar_shp_t_av('SP_wb_WW_',IOM_run.nww[0:-1] , unit = 'DKK/m3', shapefile = IOM_run.waterworks_shp)

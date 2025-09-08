@@ -12,6 +12,7 @@ from matplotlib.ticker import MaxNLocator
 import os
 import time
 import geopandas as gpd
+from shapely.geometry import Point, LineString
 
 class IOM:
     def __init__(self, config_dict):
@@ -449,12 +450,6 @@ class IOM:
             return model.Exchange_WW_WW[ww1, ww2, t] <= model.maxexchange[ww1,ww2]
         self.model.wb_WW_Exchange = pyo.Constraint(self.model.nww_ww, self.model.ntimes, rule=wb_WW_Exchange_c)
         
-        # # Set the value of Supply_WW_WSA to zero when there is no connexion between WW and WSA
-        # def wb_max_WW_WSA_c(model,ww,wsa,t):
-        #     return model.Supply_WW_WSA[ww,wsa,t] <= model.WW_WSA[ww,wsa]*10000   # multiply matrix by a high enough number so it's like an infinite transfer capacity in the pipes
-        # # model.wb_max_WW_WSA = Constraint(model.nww,model.nwsa, model.ntimes, rule=wb_max_WW_WSA_c)
-        
-        
         # =============================================================================
         # Linear reservoir constraints 
         # =============================================================================
@@ -660,6 +655,7 @@ class IOM:
         SP_wd_Allocations = np.zeros((len(self.model.nusers),len(self.model.ntimes),len(self.model.nwsa)))
         
         SP_pumping_WF = np.zeros((len(self.model.nyear),len(self.model.nwf)))
+        SP_wb_WW = np.zeros((len(self.model.ntimes),len(self.model.nww)))
         SP_wb_WW_Storage = np.zeros((len(self.model.ntimes),len(self.model.nww)))
         SP_wb_WW_Exchange = np.zeros((len(self.model.ntimes),len(self.model.nww_ww)))
         
@@ -678,7 +674,9 @@ class IOM:
                 
             for i in range(1,len(self.model.ncatch)+1):
                 SP_lin_res [t-1,i-1] = self.model.dual[self.model.lin_res[self.model.ncatch.at(i),t]]
-                
+            
+            for i in range(1, len(self.model.nww)+1):
+                SP_wb_WW[t-1,i-1] = self.model.dual[self.model.wb_WW[self.model.nww.at(i),t]]
                 
             for i in range(1, len(self.model.nww)+1):
                 SP_wb_WW_Storage[t-1,i-1] = self.model.dual[self.model.wb_WW_Storage[self.model.nww.at(i),t]]
@@ -706,6 +704,7 @@ class IOM:
         for df in SP_wd_Allocations_dfs.values():
             list_of_SP_dfs.append(df)
 
+        SP_wb_WW = pd.DataFrame(SP_wb_WW, index=self.model.ntimes, columns=['SP_wb_WW_'+str(w) for w in self.model.nww])
         SP_wb_WW_Storage = pd.DataFrame(SP_wb_WW_Storage, index=self.model.ntimes, columns=['SP_wb_WW_Storage_'+str(w) for w in self.model.nww])
         SP_wb_WW_Exchange = pd.DataFrame(SP_wb_WW_Storage, index=self.model.ntimes, columns=['SP_wb_WW_Exchange_'+str(w) for w in self.model.nww_ww])
         SP_pumping_WF = pd.DataFrame(SP_pumping_WF, index=self.model.nyear, columns=['SP_pumping_WF_'+str(w) for w in self.model.nwf])
@@ -718,9 +717,9 @@ class IOM:
         
         SP_time = pd.DataFrame({'time':[t for t in self.model.ntimes]}, index=self.model.ntimes)
         if self.gw_ind_2_in_use:
-            self.SPs = pd.concat([SP_time, SP_wb_WW_Storage, SP_wb_WW_Exchange, SP_pumping_WF, SP_lin_res, SP_min_bf, SP_gw_ind_2] + list_of_SP_dfs, axis=1) 
+            self.SPs = pd.concat([SP_time, SP_wb_WW, SP_wb_WW_Storage, SP_wb_WW_Exchange, SP_pumping_WF, SP_lin_res, SP_min_bf, SP_gw_ind_2] + list_of_SP_dfs, axis=1) 
         else:
-            self.SPs = pd.concat([SP_time, SP_wb_WW_Storage, SP_wb_WW_Exchange, SP_pumping_WF, SP_lin_res, SP_min_bf] + list_of_SP_dfs, axis=1) 
+            self.SPs = pd.concat([SP_time, SP_wb_WW, SP_wb_WW_Storage, SP_wb_WW_Exchange, SP_pumping_WF, SP_lin_res, SP_min_bf] + list_of_SP_dfs, axis=1) 
         self.SPs.to_excel(self.sp_outfile,sheet_name = 'Shadow prices')
         return self
     
@@ -784,6 +783,76 @@ class IOM:
             )
         
         plt.show()
+    
+    def wf_ww_basemap(self,**kwargs):
+        gdf_wf = gpd.read_file(self.wellfields_shp)
+        gdf_ww = gpd.read_file(self.waterworks_shp)
+        fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+        gdf_wf.plot(ax=ax)
+        gdf_ww.plot(ax=ax)
+        ax.tick_params(axis='both', labelsize=8)
+        ax.xaxis.get_offset_text().set_fontsize(8)
+        
+        merged_start = self.WW_WW.merge(
+            gdf_ww,
+            left_on='WW1',
+            right_on='WWID',
+            how='left'
+            )
+        
+        merged_end = merged_start.merge(
+            gdf_ww,
+            left_on='WW2',
+            right_on='WWID',
+            how='left',
+            suffixes=('_start', '_end')
+            )
+        merged_end = merged_end.dropna(subset=['geometry_start'])
+        merged_end = merged_end.dropna(subset=['geometry_end'])
+        lines_list = [
+            LineString([(row.geometry_start.x, row.geometry_start.y), 
+                (row.geometry_end.x, row.geometry_end.y)])
+            for index, row in merged_end.iterrows()
+            ]
+        self.ww_ww_lines_gdf = gpd.GeoDataFrame(
+            merged_end[['WW1','WW2']],  # Keep only the line identifier
+            geometry=lines_list,
+            crs=gdf_ww.crs
+        )
+        self.ww_ww_lines_gdf.plot(ax=ax)
+        
+        merged_start = self.WF_WW.merge(
+            gdf_wf,
+            left_on='WFID',
+            right_on='WFID',
+            how='left'
+            )
+        
+        merged_end = merged_start.merge(
+            gdf_ww,
+            left_on='WWID',
+            right_on='WWID',
+            how='left',
+            suffixes=('_start', '_end')
+            )
+        merged_end = merged_end.dropna(subset=['geometry_start'])
+        merged_end = merged_end.dropna(subset=['geometry_end'])
+        lines_list = [
+            LineString([(row.geometry_start.x, row.geometry_start.y), 
+                (row.geometry_end.x, row.geometry_end.y)])
+            for index, row in merged_end.iterrows()
+            ]
+        self.wf_ww_lines_gdf = gpd.GeoDataFrame(
+            merged_end[['WFID','WWID']],  # Keep only the line identifier
+            geometry=lines_list,
+            crs=gdf_ww.crs
+        )
+        self.wf_ww_lines_gdf.plot(
+            ax=ax,
+            color='black'
+            )
+    
+        plt.show()
            
     def plot_dvar_ts(self,dvar_keys,**kwargs):
         # dvar_keys: List of decision variables that should be plotted together
@@ -806,4 +875,61 @@ class IOM:
         ax.tick_params(axis='x', labelrotation=45)
         ax.legend()
         plt.show()
+        
+    def plot_dvar_bar_shp_t_av(self,base_str,indeces,**kwargs):
+        merged_list = [base_str + str(item) for item in indeces]
+        labels_list = [str(item) for item in indeces]
+        dvars = self.optimal_Decisions[merged_list]
+        dvars_mean = dvars.mean(axis=0)
+        fig, ax = plt.subplots(1,1,figsize=(10, 6))
+        ax.bar(labels_list, dvars_mean)
+        ax.tick_params(axis='x', labelrotation=45)
+        ax.set_title(base_str)
+        if 'unit' in kwargs:
+            unit = kwargs['unit']
+            ax.set_ylabel(unit)
+        plt.show()
+        
+        if 'shapefile' in kwargs:
+            shpfile = kwargs['shapefile']
+            gdf_shp = gpd.read_file(shpfile)
+            gdf_shp[base_str + 't_av'] = dvars_mean.values
+            fig, ax = plt.subplots(1,1,figsize=(6, 10))
+            gdf_shp.plot(
+                column = base_str + 't_av',
+                cmap = 'viridis',
+                legend = 'True',
+                figsize=(10, 6),
+                ax=ax)
+            ax.tick_params(axis='both', labelsize=8)
+            ax.xaxis.get_offset_text().set_fontsize(8)
+            plt.show()           
     
+    def plot_SP_bar_shp_t_av(self,base_str,indeces,**kwargs):
+        merged_list = [base_str + str(item) for item in indeces]
+        labels_list = [str(item) for item in indeces]
+        sp = self.SPs[merged_list]
+        sp_mean = sp.mean(axis=0)
+        fig, ax = plt.subplots(1,1,figsize=(10, 6))
+        ax.bar(labels_list, sp_mean)
+        ax.tick_params(axis='x', labelrotation=45)
+        ax.set_title(base_str)
+        if 'unit' in kwargs:
+            unit = kwargs['unit']
+            ax.set_ylabel(unit)
+        plt.show()
+        
+        if 'shapefile' in kwargs:
+            shpfile = kwargs['shapefile']
+            gdf_shp = gpd.read_file(shpfile)
+            gdf_shp[base_str + 't_av'] = sp_mean.values
+            fig, ax = plt.subplots(1,1,figsize=(6, 10))
+            gdf_shp.plot(
+                column = base_str + 't_av',
+                cmap = 'viridis',
+                legend = 'True',
+                figsize=(10, 6),
+                ax=ax)
+            ax.tick_params(axis='both', labelsize=8)
+            ax.xaxis.get_offset_text().set_fontsize(8)
+            plt.show()
