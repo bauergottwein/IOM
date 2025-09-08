@@ -28,23 +28,29 @@ class IOM:
         self.K_item = 'K (weeks)'
         self.Storage_LR_ini_item = 'Storage_LinRes_ini (1000 m3)'
         self.loss_fraction_item = 'Loss fraction (-)'
-        self.demand_string = '_water_dem (1000m3)'
+        self.bf_comp_pump_cost_item = 'Cost of baseflow compensation pumping (DKK/m3)'
+        self.min_BF_fraction_of_natural_item = 'Min baseflow (fraction of natural)'
         self.Q_natural_string = 'Q_natural_'
+        self.path_to_inflow_item = 'Path of inflow time series'
         # Column names of wellfield table
         self.wfid_item = 'WFID'
         self.wf_maxpump_item = 'AnlgTillad (1000 m3/yr)'
+        self.wf_pumpcost_item = 'Pumping cost (DKK/m3)'
         # Column names of waterworks table
         self.wwid_item = 'WWID'
         self.ww_storage_cap_item = 'Storage capacity (1000m3)'
         self.ww_storage_ini_item = 'Storage initial (1000m3)'
         # Column names of the water supply area table
         self.wsaid_item = 'WSAID'
+        self.demand_string = '_water_dem (1000m3)'
+        self.WTP_string = '_WTP (DKK/m3)'
         # Column names WF_WW table
         # Column names WW_WSA table
         # Column names WW_WW table
         self.WW1_item = 'WW1'
         self.WW2_item = 'WW2'
         self.WW_WW_cap = 'Capacity (1000m3/week)'
+        self.WW_WW_cost = 'Exchange cost (DKK/m3)'
         # Column names catchment WB files
         self.recharge_item = 'MIKE SHE GW recharge (mm)' # Expects mm/time unit, csv files
         self.real_time_item = 'Start time of weekly time step'
@@ -59,20 +65,21 @@ class IOM:
         print(self.run_name, 'for', self.time_steps, self.time_unit)
         print(time.strftime("%H:%M:%S") + ' Importing data...')
                
-        self.catchment_data = pd.read_csv(self.catchment_table,sep = ';')  
-        self.WF = pd.read_csv(self.wellfields_table,sep = ';')
-        self.WW=pd.read_csv(self.waterworks_table,sep = ';')
-        self.WSA=pd.read_csv(self.wsa_table, sep = ';')
-        self.WF_WW=pd.read_csv(self.wf_ww_table,sep = ';') 
-        self.WW_WSA=pd.read_csv(self.ww_wsa_table,sep = ';')
-        self.WW_WW=pd.read_csv(self.ww_ww_table,sep = ';')
+        self.catchment_data = pd.read_excel(self.catchment_table)  
+        self.WF = pd.read_excel(self.wellfields_table)
+        self.WW=pd.read_excel(self.waterworks_table)
+        self.WSA=pd.read_excel(self.wsa_table)
+        self.WF_WW=pd.read_excel(self.wf_ww_table) 
+        self.WW_WSA=pd.read_excel(self.ww_wsa_table)
+        self.WW_WW=pd.read_excel(self.ww_ww_table)
         
         self.ncatch = np.array(self.catchment_data[self.catchid_item])
         
         self.inflow = np.empty((len(self.ncatch), len(self.ntimes)))
 
         for i in range(1,len(self.ncatch)+1):
-            self.data=pd.read_csv(self.path_string_WB + str(int(i)) + '.csv')
+            file_to_read = self.catchment_data.loc[self.catchment_data[self.catchid_item] == self.ncatch[i-1],  self.path_to_inflow_item].values[0]
+            self.data=pd.read_csv(file_to_read)
             self.inflow[i-1,:] = self.data[self.recharge_item][:len(self.ntimes)]/1000 * self.catchment_data[self.catchment_area_item][i-1]/1000   # from mm to 10^3 m3
             
             #remove the negative data in the inflow ! 
@@ -108,17 +115,6 @@ class IOM:
         self.nwf_ww = list(self.WF_WW.itertuples(index=False, name=None))
         self.nww_wsa = list(self.WW_WSA.itertuples(index=False, name=None))
         self.nww_ww = list(self.WW_WW.loc[:,[self.WW1_item,self.WW2_item]].itertuples(index=False, name=None))
-        
-        # =============================================================================
-        # Set the WTP in weekly time steps
-        # =============================================================================
-        
-        self.WTP_weekly = dict()
-
-        for w in self.nwsa:
-            for t in self.ntimes:
-                for u in self.nusers:
-                    self.WTP_weekly[u,w,t] = self.WTP[u]
             
         # =============================================================================
         # Linear reservoirs initial parameters
@@ -137,11 +133,13 @@ class IOM:
         
         df_lookup = self.WSA.set_index(self.wsaid_item)             
         self.Demand = dict()
+        self.WTP_weekly = dict()
         
         for u in self.nusers:
             for w in self.nwsa:
                 for t in self.ntimes:
                     self.Demand[u,w,t] = df_lookup.loc[w, u + self.demand_string] / 52.18
+                    self.WTP_weekly[u,w,t] = df_lookup.loc[w, u + self.WTP_string]
 
                       
         # =============================================================================
@@ -149,7 +147,11 @@ class IOM:
         # =============================================================================
         
         self.I_inflow = dict()
+        self.bf_comp_pump_cost = dict()
+        self.min_BF_fraction_of_natural = dict()
         for c in self.ncatch:
+            self.bf_comp_pump_cost[c] = self.catchment_data.loc[self.catchment_data[self.catchid_item] == c, self.bf_comp_pump_cost_item].values[0]
+            self.min_BF_fraction_of_natural[c] = self.catchment_data.loc[self.catchment_data[self.catchid_item] == c, self.min_BF_fraction_of_natural_item].values[0]
             for t in self.ntimes:
                 self.I_inflow[c,t] = self.inflow[c-1,t-1]
                 
@@ -158,8 +160,10 @@ class IOM:
         # =============================================================================
         
         self.maxpump = dict()
+        self.pumping_cost = dict()
         for wf in self.nwf:
             self.maxpump[wf] = self.WF.loc[self.WF[self.wfid_item] == wf, self.wf_maxpump_item].values[0]   # yearly maxpump 1000m3
+            self.pumping_cost[wf] = self.WF.loc[self.WF[self.wfid_item] == wf, self.wf_pumpcost_item].values[0]
         
         # =============================================================================
         # Storage capacity and initial storage of WaterWorks
@@ -175,7 +179,8 @@ class IOM:
         # Water exchange dictionary 
         # =============================================================================
         
-        self.ww_ww_cap = dict(zip(self.nww_ww,self.WW_WW[self.WW_WW_cap]))  # transfer capacity per 1000m3/day converted to 1000m3/week
+        self.ww_ww_cap = dict(zip(self.nww_ww,self.WW_WW[self.WW_WW_cap]))
+        self.ww_ww_cost = dict(zip(self.nww_ww,self.WW_WW[self.WW_WW_cost]))# transfer capacity per 1000m3/day converted to 1000m3/week
                           
         # =============================================================================
         # Create the year / week dictionnary
@@ -215,13 +220,14 @@ class IOM:
             return Qout
         
         self.Q_natural = pd.DataFrame(index=self.ntimes)
+        self.minbf_per_c = dict()
         for c in self.ncatch:
             K = self.catchment_data.loc[self.catchment_data[self.catchid_item] == c, self.K_item].values[0]
             Sini = self.catchment_data.loc[self.catchment_data[self.catchid_item] == c, self.Storage_LR_ini_item].values[0]
             self.Q_natural[self.Q_natural_string + str(c)] = linres(Sini,1,K,self.inflow[c-1])  # timestep 1 week for K in weeks
+            self.minbf_per_c[c] = self.min_BF_fraction_of_natural[c] * self.Q_natural[self.Q_natural_string + str(c)]
         
-        # minbf = dict(zip(ncatch, 0.75*Q_natural.median()))  # new minbf based on median natural baseflow
-        self.minbf = dict(zip(self.ncatch, self.min_BF_fraction_of_natural * self.Q_natural.mean()))  # new minbf based on average natural baseflow
+        self.minbf = dict(zip(self.ncatch, self.minbf_per_c))  # new minbf based on average natural baseflow
         
         # =============================================================================
         # Area dictionnary
@@ -265,39 +271,44 @@ class IOM:
         self.model.Allocations  = pyo.Var(self.model.nusers, self.model.nwsa, self.model.ntimes, within=pyo.NonNegativeReals) # Allocation to households, 1000 m3 per weekly time step
         
         self.model.Pump_WF = pyo.Var(self.model.nwf, self.model.ntimes, within=pyo.NonNegativeReals) # Sum of groundwater pumping for each wellfields 1000 m3 per weekly time step
+              
         self.model.Pump_catch = pyo.Var(self.model.ncatch, self.model.ntimes, within=pyo.NonNegativeReals) # Sum of groundwater pumping for each catchment 1000 m3 per weekly time step
         self.model.Pump_GW_to_BF = pyo.Var(self.model.ncatch, self.model.ntimes, within=pyo.NonNegativeReals)  # Pumping to the river to maintain a min BF 
-        self.model.Supply_WF_WW = pyo.Var(self.model.nwf_ww, self.model.ntimes, within=pyo.NonNegativeReals) # Supply from WF to WW 1000m3/week
-        self.model.Storage_WW = pyo.Var(self.model.nww, self.model.ntimes, within=pyo.NonNegativeReals) # Water storage for each waterworks 1000m3 per weekly time step 
-        self.model.Exchange_WW_WW  = pyo.Var(self.model.nww_ww, self.model.ntimes, within=pyo.NonNegativeReals) # Water transfer from 1 anlaeg to another, therefore 2 times nanlaeg, 1000m3 per weekly time step
-        self.model.Supply_WW_WSA = pyo.Var(self.model.nww_wsa, self.model.ntimes, within=pyo.NonNegativeReals) # Water Supply distributed by each Waterworks to all the WSA it serves
-        
         self.model.Q_base  = pyo.Var(self.model.ncatch, self.model.ntimes, within=pyo.NonNegativeReals) # Base flow from GW catchment, 1000 m3 per weekly time step
         self.model.Storage_LinRes   = pyo.Var(self.model.ncatch, self.model.ntimes, within=pyo.NonNegativeReals) # One end storage per month and per reservoir. 1000 m3 per weekly time step
         
+        self.model.Storage_WW = pyo.Var(self.model.nww, self.model.ntimes, within=pyo.NonNegativeReals) # Water storage for each waterworks 1000m3 per weekly time step 
+        
+        self.model.Supply_WF_WW = pyo.Var(self.model.nwf_ww, self.model.ntimes, within=pyo.NonNegativeReals) # Supply from WF to WW 1000m3/week
+        
+        self.model.Exchange_WW_WW  = pyo.Var(self.model.nww_ww, self.model.ntimes, within=pyo.NonNegativeReals) # Water transfer from 1 anlaeg to another, therefore 2 times nanlaeg, 1000m3 per weekly time step
+        
+        self.model.Supply_WW_WSA = pyo.Var(self.model.nww_wsa, self.model.ntimes, within=pyo.NonNegativeReals) # Water Supply distributed by each Waterworks to all the WSA it serves
+                
         # =============================================================================
         # Declare parameters
         # =============================================================================
         
         #model.endtime = Param(initialize = ntimes[-1]) # find end time step of the model
         self.model.Demands  = pyo.Param(self.model.nusers, self.model.nwsa, self.model.ntimes,within=pyo.NonNegativeReals,initialize = self.Demand) # Set Water demands for all use categories
-        
         self.model.WTP  = pyo.Param(self.model.nusers,self.model.nwsa, self.model.ntimes,within=pyo.NonNegativeReals,initialize = self.WTP_weekly) # Set Willingness To Pay for all use categories
         
         self.model.maxpump_WF = pyo.Param(self.model.nwf, within=pyo.NonNegativeReals,initialize = self.maxpump)  # Abstraction license 1000 m3/week
+        self.model.pumping_cost = pyo.Param(self.model.nwf,within=pyo.NonNegativeReals, initialize = self.pumping_cost)   # pump cost in DKK/m3 or thousand DKK/1000m3
+        
         self.model.Storage_WW_ini = pyo.Param(self.model.nww, within=pyo.NonNegativeReals,initialize = self.Storage_WW_ini) # Initial storage in Waterworks 1000m3
         self.model.maxstorage_WW = pyo.Param(self.model.nww, within=pyo.NonNegativeReals,initialize = self.maxstorage) # Max storage capacity 1000 m3
+        
         self.model.maxexchange = pyo.Param(self.model.nww_ww, within=pyo.NonNegativeReals,initialize = self.ww_ww_cap)    # Water transfer capacity between waterworks in 1000m3/week
-        
-        self.model.pumping_cost = pyo.Param(within=pyo.NonNegativeReals, initialize = self.pumping_cost)   # pump cost in DKK/m3 or thousand DKK/1000m3
-        self.model.exchange_cost = pyo.Param(within=pyo.NonNegativeReals, initialize = self.exchange_cost)  # water exchange cost DKK/m3 per distance ?????8
+        self.model.exchange_cost = pyo.Param(self.model.nww_ww, within=pyo.NonNegativeReals,initialize = self.ww_ww_cost)           # water exchange cost DKK/m3
+                
         self.model.loss_fraction_waste = pyo.Param(self.model.ncatch, within=pyo.NonNegativeReals, initialize = self.loss_fraction) #loss fraction of wastewater return flow to the river (what goes to the sea....)
-        
         self.model.Storage_LinRes_ini = pyo.Param(self.model.ncatch, within=pyo.NonNegativeReals,initialize = self.Sinigwc) # Set initial GW storage for all groundwater catchments
         self.model.Kgwc = pyo.Param(self.model.ncatch, within=pyo.NonNegativeReals,initialize = self.Kgwc) # Set time constant for all groundwater catchments
         self.model.Qbase_ini = pyo.Param(self.model.ncatch, within=pyo.NonNegativeReals,initialize = self.Qbaseini) # Set initial BaseFlow for all catchments
         self.model.inflow = pyo.Param(self.model.ncatch, self.model.ntimes,within=pyo.Reals,initialize = self.I_inflow) # Set inflow to GW to for all catchments (from MIKE SHE model)
         self.model.minbflow = pyo.Param(self.model.ncatch,within=pyo.Reals,initialize = self.minbf) # Set environmental constraint on flow for all catchments
+        self.model.bf_comp_pump_cost = pyo.Param(self.model.ncatch, within=pyo.NonNegativeReals,initialize = self.bf_comp_pump_cost)
         
         return self
         
@@ -313,8 +324,9 @@ class IOM:
         print(time.strftime("%H:%M:%S") + ' Defining objective function...')
         def obj_rule(model):
             User_ben = sum(model.WTP[u,w,t]*model.Allocations[u,w,t] for u in model.nusers for w in model.nwsa for t in model.ntimes)
-            Pump_cost = sum(model.pumping_cost*model.Pump_WF[wf,t]  for wf in model.nwf for t in model.ntimes) + sum(model.pumping_cost*model.Pump_GW_to_BF[c,t] for c in model.ncatch for t in model.ntimes)
-            Exchange_cost = sum(model.exchange_cost*model.Exchange_WW_WW[ww_ww,t] for ww_ww in model.nww_ww for t in model.ntimes)
+            Pump_cost = sum(model.pumping_cost[wf] * model.Pump_WF[wf,t]  for wf in model.nwf for t in model.ntimes) + sum(
+                model.bf_comp_pump_cost[c] * model.Pump_GW_to_BF[c,t] for c in model.ncatch for t in model.ntimes)
+            Exchange_cost = sum(model.exchange_cost[ww_ww]*model.Exchange_WW_WW[ww_ww,t] for ww_ww in model.nww_ww for t in model.ntimes)
             return User_ben - Pump_cost - Exchange_cost 
         self.model.obj = pyo.Objective(rule=obj_rule, sense = pyo.maximize)
         

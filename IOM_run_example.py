@@ -16,34 +16,24 @@ Run_attributes['time_unit'] = 'week'
 Run_attributes['volume_unit'] = '1000_m3'
 Run_attributes['currency'] = '1000 DKK'
 Run_attributes['water_users'] = ['HH','Ind','PS','Agri']
+Run_attributes['gw_ind_2_in_use'] = False
 Run_attributes['WTP'] = dict()
-Run_attributes['WTP']['HH'] = 90. #currency per volume unit
-Run_attributes['WTP']['Ind'] = 30.
-Run_attributes['WTP']['PS'] = 45.
-Run_attributes['WTP']['Agri'] = 22.
-Run_attributes['pumping_cost'] = 1.0
-Run_attributes['exchange_cost'] = 1.0
 
-
-Run_attributes['catchment_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\catchments.csv'
+Run_attributes['catchment_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\catchments.xlsx'
 Run_attributes['catchment_shp'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\Catchment_Watersheds_Capital.shp' 
 
-Run_attributes['wellfields_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\wellfields.csv'
+Run_attributes['wellfields_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\wellfields.xlsx'
 Run_attributes['wellfields_shp'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\Wellfields.shp' 
 
-Run_attributes['waterworks_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\waterworks.csv'
+Run_attributes['waterworks_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\waterworks.xlsx'
 Run_attributes['waterworks_shp'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\Waterworks.shp' 
 
-Run_attributes['wsa_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\water_supply_areas.csv'
+Run_attributes['wsa_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\water_supply_areas.xlsx'
 Run_attributes['wsa_shp'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\WSA_capital.shp'
 
-Run_attributes['wf_ww_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WF_WW.csv'
-Run_attributes['ww_wsa_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WW_WSA.csv'
-Run_attributes['ww_ww_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WW_WW.csv'
-Run_attributes['path_string_WB'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WB_Watersheds_Capital\WB_SZ_Watersheds_' 
-
-Run_attributes['min_BF_fraction_of_natural'] = 0.75
-Run_attributes['gw_ind_2_in_use'] = False
+Run_attributes['wf_ww_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WF_WW.xlsx'
+Run_attributes['ww_wsa_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WW_WSA.xlsx'
+Run_attributes['ww_ww_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WW_WW.xlsx'
 
 Run_attributes['savepath'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Results'
 
