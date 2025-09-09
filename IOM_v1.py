@@ -573,13 +573,7 @@ class IOM:
         for u in self.model.nusers:
             self.Demands_tot[u] = sum(pyo.value(self.model.Demands[u,wsa,t]) for wsa in self.model.nwsa for t in self.model.ntimes)
             self.All_Demands_tot  = self.All_Demands_tot + self.Demands_tot[u]
-        
-
-        self.Deficit_per_WSA = dict()
-        for u in self.model.nusers:
-            self.Deficit_per_WSA[u] = [100*sum(pyo.value(self.model.Allocations[u,wsa,t]) for t in self.model.ntimes)/(sum(pyo.value(self.model.Demands[u,wsa,t]) for t in self.model.ntimes) + 1E-6) for wsa in self.model.nwsa]
-        
-    
+            
         for u in self.model.nusers:
             print('Allocation ' + str(u) + ' (% of demand) : ',round(100*self.Allocations_tot[u]/(self.Demands_tot[u]+1E-6),1), '%')
         return self
@@ -718,7 +712,7 @@ class IOM:
 
         SP_wb_WW = pd.DataFrame(SP_wb_WW, index=self.model.ntimes, columns=['SP_wb_WW_'+str(w) for w in self.model.nww])
         SP_wb_WW_Storage = pd.DataFrame(SP_wb_WW_Storage, index=self.model.ntimes, columns=['SP_wb_WW_Storage_'+str(w) for w in self.model.nww])
-        SP_wb_WW_Exchange = pd.DataFrame(SP_wb_WW_Storage, index=self.model.ntimes, columns=['SP_wb_WW_Exchange_'+str(w) for w in self.model.nww_ww])
+        SP_wb_WW_Exchange = pd.DataFrame(SP_wb_WW_Exchange, index=self.model.ntimes, columns=['SP_wb_WW_Exchange_'+str(w) for w in self.model.nww_ww])
         SP_pumping_WF = pd.DataFrame(SP_pumping_WF, index=self.model.nyear, columns=['SP_pumping_WF_'+str(w) for w in self.model.nwf])
         
         SP_lin_res = pd.DataFrame(SP_lin_res, index=self.model.ntimes, columns=['SP_lin_res_'+str(c) for c in self.model.ncatch])
@@ -733,6 +727,24 @@ class IOM:
         else:
             self.SPs = pd.concat([SP_time, SP_wb_WW, SP_wb_WW_Storage, SP_wb_WW_Exchange, SP_pumping_WF, SP_lin_res, SP_min_bf] + list_of_SP_dfs, axis=1) 
         self.SPs.to_excel(self.sp_outfile,sheet_name = 'Shadow prices')
+            
+        #********************************************************************************
+        # Other processing
+        #********************************************************************************
+        
+        Fulfilment = dict()
+        for u in self.model.nusers:
+            Fulfilment[u] = dict()
+            for wsa in self.model.nwsa:
+                alloc = sum(pyo.value(self.model.Allocations[u,wsa,t]) for t in self.model.ntimes)
+                dem = sum(pyo.value(self.model.Demands[u,wsa,t]) for t in self.model.ntimes)
+                if dem > 0 :
+                    Fulfilment[u][wsa] = alloc/dem*100.
+                else:
+                    Fulfilment[u][wsa] = 100.
+        Fulfilment = pd.DataFrame(Fulfilment)
+        Fulfilment.index = self.nwsa
+        self.Fulfilment_per_WSA = Fulfilment
         return self
     
     
@@ -805,7 +817,12 @@ class IOM:
         ax.tick_params(axis='both', labelsize=8)
         ax.xaxis.get_offset_text().set_fontsize(8)
         
-        merged_start = self.WW_WW.merge(
+        sorted_WW_WW = pd.DataFrame(self.WW_WW.apply(lambda row: sorted([row['WW1'], row['WW2']]), axis=1).tolist(),columns=['WW1', 'WW2'])
+        
+        self.WW_WW['unique_key'] = sorted_WW_WW['WW1'].astype('string') + '_' +  sorted_WW_WW['WW2'].astype('string')
+        unique_rows_df = self.WW_WW.drop_duplicates(subset='unique_key')
+        
+        merged_start = unique_rows_df.merge(
             gdf_ww,
             left_on='WW1',
             right_on='WWID',
@@ -827,7 +844,7 @@ class IOM:
             for index, row in merged_end.iterrows()
             ]
         self.ww_ww_lines_gdf = gpd.GeoDataFrame(
-            merged_end[['WW1','WW2']],  # Keep only the line identifier
+            merged_end[['WW1','WW2', 'unique_key']],  # Keep only the line identifier
             geometry=lines_list,
             crs=gdf_ww.crs
         )
@@ -865,6 +882,7 @@ class IOM:
             )
     
         plt.show()
+        return self
            
     def plot_dvar_ts(self,dvar_keys,**kwargs):
         # dvar_keys: List of decision variables that should be plotted together
@@ -911,7 +929,7 @@ class IOM:
                 column = base_str + 't_av',
                 cmap = 'viridis',
                 legend = 'True',
-                figsize=(10, 6),
+                legend_kwds={'label': base_str},
                 ax=ax)
             ax.tick_params(axis='both', labelsize=8)
             ax.xaxis.get_offset_text().set_fontsize(8)
@@ -921,9 +939,9 @@ class IOM:
         merged_list = [base_str + str(item) for item in indeces]
         labels_list = [str(item) for item in indeces]
         sp = self.SPs[merged_list]
-        sp_mean = sp.mean(axis=0)
+        self.sp_mean = sp.mean(axis=0)
         fig, ax = plt.subplots(1,1,figsize=(10, 6))
-        ax.bar(labels_list, sp_mean)
+        ax.bar(labels_list, self.sp_mean)
         ax.tick_params(axis='x', labelrotation=45)
         ax.set_title(base_str)
         if 'unit' in kwargs:
@@ -934,13 +952,40 @@ class IOM:
         if 'shapefile' in kwargs:
             shpfile = kwargs['shapefile']
             gdf_shp = gpd.read_file(shpfile)
-            gdf_shp[base_str + 't_av'] = sp_mean.values
+            gdf_shp[base_str + 't_av'] = self.sp_mean.values
             fig, ax = plt.subplots(1,1,figsize=(6, 10))
             gdf_shp.plot(
                 column = base_str + 't_av',
                 cmap = 'viridis',
                 legend = 'True',
-                figsize=(10, 6),
+                legend_kwds={'label': base_str},
+                ax=ax)
+            ax.tick_params(axis='both', labelsize=8)
+            ax.xaxis.get_offset_text().set_fontsize(8)
+            plt.show()
+        return self
+        
+    def plot_spatial_processed(self,results,column,title,**kwargs):
+        results.plot(kind = 'bar',rot=45)
+        plt.ylabel(title)
+        plt.show()
+        
+        if 'shapefile' in kwargs:
+            shpfile = kwargs['shapefile']
+            shpid = kwargs['shpid']
+            gdf_shp = gpd.read_file(shpfile)
+            if 'joincol' in kwargs:
+                joined_gdf = gdf_shp.merge(
+                    results, left_on=shpid, right_on = kwargs['joincol'], how='left')
+            else:
+                joined_gdf = gdf_shp.merge(
+                    results, left_on=shpid, right_index = True, how='left')   
+            fig, ax = plt.subplots(1,1,figsize=(6, 10))
+            joined_gdf.plot(
+                column = column,
+                cmap = 'plasma',
+                legend = 'True',
+                legend_kwds={'label': title},
                 ax=ax)
             ax.tick_params(axis='both', labelsize=8)
             ax.xaxis.get_offset_text().set_fontsize(8)
