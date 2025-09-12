@@ -112,7 +112,7 @@ class IOM:
         # Double indeces for connections
         # =============================================================================
         
-        self.nwf_ww = list(self.WF_WW.itertuples(index=False, name=None))
+        self.nwf_ww = list(self.WF_WW[[self.wfid_item,self.wwid_item]].itertuples(index=False, name=None))
         self.nww_wsa = list(self.WW_WSA.itertuples(index=False, name=None))
         self.nww_ww = list(self.WW_WW.loc[:,[self.WW1_item,self.WW2_item]].itertuples(index=False, name=None))
             
@@ -882,6 +882,30 @@ class IOM:
             )
     
         plt.show()
+        return self
+    
+    def ww_wsa_basemap(self,**kwargs):
+        gdf_ww = gpd.read_file(self.waterworks_shp)
+        gdf_wsa = gpd.read_file(self.wsa_shp)
+        id_table = self.WW_WSA
+        merged_with_points = pd.merge(id_table, gdf_ww, on=self.wwid_item, how='left')
+        final_merged = pd.merge(merged_with_points, gdf_wsa, on=self.wsaid_item, how='left', suffixes=('_point', '_polygon'))
+        final_merged.dropna(subset=['geometry_point', 'geometry_polygon'], inplace=True)
+        lines = [
+            LineString([row.geometry_point, row.geometry_polygon.centroid])
+            for index, row in final_merged.iterrows()
+        ]
+        self.lines_ww_wsa_gdf = gpd.GeoDataFrame(
+            final_merged.drop(columns=['geometry_point', 'geometry_polygon']),
+            geometry=lines,
+            crs=gdf_ww.crs
+        )
+        fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+        self.lines_ww_wsa_gdf.plot(
+            ax=ax,
+            color='black'
+            )
+        
         return self
            
     def plot_dvar_ts(self,dvar_keys,**kwargs):

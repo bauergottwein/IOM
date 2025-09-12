@@ -31,9 +31,9 @@ Run_attributes['waterworks_shp'] = r'c:\Users\vpk410\Documents\GW_allocation_mod
 Run_attributes['wsa_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\water_supply_areas_2019.xlsx'
 Run_attributes['wsa_shp'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\WSA_capital_2019.shp'
 
-Run_attributes['wf_ww_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WF_WW.xlsx'
-Run_attributes['ww_wsa_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WW_WSA_2019.xlsx'
-Run_attributes['ww_ww_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WW_WW.xlsx'
+Run_attributes['wf_ww_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WF_WW_v2.xlsx'
+Run_attributes['ww_wsa_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WW_WSA_2019_no_redundancy.xlsx'
+Run_attributes['ww_ww_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WW_WW_v2.xlsx'
 
 
 Run_attributes['savepath'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Results'
@@ -60,9 +60,10 @@ IOM_run.plot_catch_basemap()
 IOM_run.plot_wsa_basemap()
 #%%
 IOM_run = IOM_run.wf_ww_basemap()
+IOM_run = IOM_run.ww_wsa_basemap()
 #%%
 IOM_run.plot_dvar_ts(['Allocation_Ind_3168'])
-IOM_run.plot_SP_ts(['SP_wb_WW_Storage_5780'])
+IOM_run.plot_SP_ts(['SP_wb_WW_Storage_1'])
 #%%
 IOM_run.plot_dvar_bar_shp_t_av('Allocation_HH_',IOM_run.nwsa , unit = '1000 m3/week', shapefile = IOM_run.wsa_shp)
 #%%
@@ -90,4 +91,4 @@ max_values = sp_mean_df.groupby('sorted_key').agg({
     })
 #%%    
 IOM_run.plot_spatial_processed(max_values , column = 'sp',title = 'Transfer capacity shadow price, DKK/m3/week', 
-                               shapefile = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\ww_ww_lines.shp', shpid = 'unique_key',joincol = 'unique_key')
+                               shapefile = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\ww_ww_lines_v2.shp', shpid = 'unique_key',joincol = 'unique_key')
