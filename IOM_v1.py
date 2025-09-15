@@ -225,9 +225,9 @@ class IOM:
             K = self.catchment_data.loc[self.catchment_data[self.catchid_item] == c, self.K_item].values[0]
             Sini = self.catchment_data.loc[self.catchment_data[self.catchid_item] == c, self.Storage_LR_ini_item].values[0]
             self.Q_natural[self.Q_natural_string + str(c)] = linres(Sini,1,K,self.inflow[c-1])  # timestep 1 week for K in weeks
-            self.minbf_per_c[c] = self.min_BF_fraction_of_natural[c] * self.Q_natural[self.Q_natural_string + str(c)]
+            self.minbf_per_c[c] = self.min_BF_fraction_of_natural[c] * self.Q_natural[self.Q_natural_string + str(c)].mean(axis=0)
         
-        self.minbf = dict(zip(self.ncatch, self.minbf_per_c))  # new minbf based on average natural baseflow
+        self.minbf = self.minbf_per_c  # new minbf based on average natural baseflow
         
         # =============================================================================
         # Area dictionnary

@@ -22,18 +22,18 @@ Run_attributes['gw_ind_2_in_use'] = False
 Run_attributes['catchment_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\catchments.xlsx'
 Run_attributes['catchment_shp'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\Catchment_Watersheds_Capital.shp' 
 
-Run_attributes['wellfields_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\wellfields.xlsx'
-Run_attributes['wellfields_shp'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\Wellfields.shp' 
+Run_attributes['wellfields_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\wellfields_active.xlsx'
+Run_attributes['wellfields_shp'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\Wellfields_active.shp' 
 
-Run_attributes['waterworks_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\waterworks.xlsx'
-Run_attributes['waterworks_shp'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\Waterworks.shp' 
+Run_attributes['waterworks_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\waterworks_active.xlsx'
+Run_attributes['waterworks_shp'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\Waterworks_active.shp' 
 
 Run_attributes['wsa_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\water_supply_areas_2019.xlsx'
 Run_attributes['wsa_shp'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\WSA_capital_2019.shp'
 
-Run_attributes['wf_ww_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WF_WW_v2.xlsx'
-Run_attributes['ww_wsa_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WW_WSA_2019_no_redundancy.xlsx'
-Run_attributes['ww_ww_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WW_WW_v2.xlsx'
+Run_attributes['wf_ww_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WF_WW_v2_active.xlsx'
+Run_attributes['ww_wsa_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WW_WSA_2019_no_redundancy_active.xlsx'
+Run_attributes['ww_ww_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WW_WW_v2_active.xlsx'
 
 
 Run_attributes['savepath'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Results'
@@ -68,6 +68,16 @@ IOM_run.plot_SP_ts(['SP_wb_WW_Storage_1'])
 IOM_run.plot_dvar_bar_shp_t_av('Allocation_HH_',IOM_run.nwsa , unit = '1000 m3/week', shapefile = IOM_run.wsa_shp)
 #%%
 IOM_run.plot_SP_bar_shp_t_av('SP_wb_WW_',IOM_run.nww , unit = 'DKK/m3', shapefile = IOM_run.waterworks_shp)
+#%%
+#%%
+IOM_run.plot_SP_bar_shp_t_av('SP_wb_WW_',IOM_run.nww , unit = 'DKK/m3', shapefile = IOM_run.waterworks_shp)
+#%%
+IOM_run.plot_SP_bar_shp_t_av('SP_pumping_WF_',IOM_run.nwf , unit = 'DKK/m3', shapefile = IOM_run.wellfields_shp)
+#%%
+IOM_run.plot_SP_bar_shp_t_av('SP_lin_res_',IOM_run.ncatch , unit = 'DKK/m3', shapefile = IOM_run.catchment_shp)
+#%%
+#%%
+IOM_run.plot_SP_bar_shp_t_av('SP_min_bf_',IOM_run.ncatch , unit = 'DKK/m3', shapefile = IOM_run.catchment_shp)
 #%%
 IOM_run.plot_spatial_processed(IOM_run.Fulfilment_per_WSA['HH'] , column = 'HH',title = 'Demand fulfilment HH (%)', shapefile = IOM_run.wsa_shp, shpid = 'WSAID')
 #%%
