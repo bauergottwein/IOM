@@ -63,9 +63,14 @@ IOM_run = IOM_run.wf_ww_basemap()
 IOM_run = IOM_run.ww_wsa_basemap()
 #%%
 IOM_run.plot_dvar_ts(['Allocation_Ind_3168'])
+#%%
+IOM_run.plot_dvar_ts(['Pump_GW_to_BF_12'])
+#%%
 IOM_run.plot_SP_ts(['SP_wb_WW_Storage_1'])
 #%%
 IOM_run.plot_dvar_bar_shp_t_av('Allocation_HH_',IOM_run.nwsa , unit = '1000 m3/week', shapefile = IOM_run.wsa_shp)
+#%%
+IOM_run.plot_dvar_bar_shp_t_av('Pump_GW_to_BF_',IOM_run.ncatch , unit = '1000 m3/week', shapefile = IOM_run.catchment_shp)
 #%%
 IOM_run.plot_SP_bar_shp_t_av('SP_wb_WW_',IOM_run.nww , unit = 'DKK/m3', shapefile = IOM_run.waterworks_shp)
 #%%
