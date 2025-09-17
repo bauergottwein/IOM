@@ -64,7 +64,7 @@ IOM_run = IOM_run.ww_wsa_basemap()
 #%%
 IOM_run.plot_dvar_ts(['Allocation_Ind_3168'])
 #%%
-IOM_run.plot_dvar_ts(['Pump_GW_to_BF_12'])
+IOM_run.plot_dvar_ts(['Pump_GW_to_BF_26'])
 #%%
 IOM_run.plot_SP_ts(['SP_wb_WW_Storage_1'])
 #%%
@@ -72,12 +72,9 @@ IOM_run.plot_dvar_bar_shp_t_av('Allocation_HH_',IOM_run.nwsa , unit = '1000 m3/w
 #%%
 IOM_run.plot_dvar_bar_shp_t_av('Pump_GW_to_BF_',IOM_run.ncatch , unit = '1000 m3/week', shapefile = IOM_run.catchment_shp)
 #%%
-IOM_run.plot_SP_bar_shp_t_av('SP_wb_WW_',IOM_run.nww , unit = 'DKK/m3', shapefile = IOM_run.waterworks_shp)
+IOM_run.plot_SP_bar_shp_t_av('SP_wb_WW_',IOM_run.nww , unit = 'DKK/m3', shapefile = IOM_run.waterworks_shp, background_shp = IOM_run.catchment_shp)
 #%%
-#%%
-IOM_run.plot_SP_bar_shp_t_av('SP_wb_WW_',IOM_run.nww , unit = 'DKK/m3', shapefile = IOM_run.waterworks_shp)
-#%%
-IOM_run.plot_SP_bar_shp_t_av('SP_pumping_WF_',IOM_run.nwf , unit = 'DKK/m3', shapefile = IOM_run.wellfields_shp)
+IOM_run.plot_SP_bar_shp_t_av('SP_pumping_WF_',IOM_run.nwf , unit = 'DKK/m3', shapefile = IOM_run.wellfields_shp, background_shp = IOM_run.catchment_shp)
 #%%
 IOM_run.plot_SP_bar_shp_t_av('SP_lin_res_',IOM_run.ncatch , unit = 'DKK/m3', shapefile = IOM_run.catchment_shp)
 #%%
@@ -105,5 +102,6 @@ max_values = sp_mean_df.groupby('sorted_key').agg({
     'unique_key': 'first'
     })
 #%%    
-IOM_run.plot_spatial_processed(max_values , column = 'sp',title = 'Transfer capacity shadow price, DKK/m3/week', 
-                               shapefile = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\ww_ww_lines_v2.shp', shpid = 'unique_key',joincol = 'unique_key')
+IOM_run = IOM_run.plot_spatial_processed(max_values , column = 'sp',title = 'Transfer capacity shadow price, DKK/m3/week', 
+                               shapefile = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\ww_ww_lines_v2.shp', 
+                               shpid = 'unique_key',joincol = 'unique_key',background_shp = IOM_run.catchment_shp)

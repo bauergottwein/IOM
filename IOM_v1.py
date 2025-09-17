@@ -917,6 +917,7 @@ class IOM:
         ax.xaxis.set_major_locator(MaxNLocator(nbins=10))
         ax.tick_params(axis='x', labelrotation=45)
         ax.legend()
+        plt.tight_layout()
         plt.show()
         
     def plot_SP_ts(self,SP_keys,**kwargs):
@@ -928,6 +929,7 @@ class IOM:
         ax.xaxis.set_major_locator(MaxNLocator(nbins=10))
         ax.tick_params(axis='x', labelrotation=45)
         ax.legend()
+        plt.tight_layout()
         plt.show()
         
     def plot_dvar_bar_shp_t_av(self,base_str,indeces,**kwargs):
@@ -957,7 +959,9 @@ class IOM:
                 ax=ax)
             ax.tick_params(axis='both', labelsize=8)
             ax.xaxis.get_offset_text().set_fontsize(8)
-            plt.show()           
+            plt.show()
+            self.plot_dvar_bar_shp_t_av_gdf = gdf_shp
+        return self
     
     def plot_SP_bar_shp_t_av(self,base_str,indeces,**kwargs):
         merged_list = [base_str + str(item) for item in indeces]
@@ -971,6 +975,7 @@ class IOM:
         if 'unit' in kwargs:
             unit = kwargs['unit']
             ax.set_ylabel(unit)
+        plt.tight_layout()
         plt.show()
         
         if 'shapefile' in kwargs:
@@ -978,6 +983,14 @@ class IOM:
             gdf_shp = gpd.read_file(shpfile)
             gdf_shp[base_str + 't_av'] = self.sp_mean.values
             fig, ax = plt.subplots(1,1,figsize=(6, 10))
+            if 'background_shp' in kwargs:
+                gdf_bground = gpd.read_file(kwargs['background_shp'])
+                gdf_bground.plot(
+                    facecolor='none',
+                    edgecolor='black',
+                    linewidth=0.5,  # Control the thickness of the border
+                    ax=ax,
+                    )
             gdf_shp.plot(
                 column = base_str + 't_av',
                 cmap = 'viridis',
@@ -986,12 +999,16 @@ class IOM:
                 ax=ax)
             ax.tick_params(axis='both', labelsize=8)
             ax.xaxis.get_offset_text().set_fontsize(8)
+            self.plot_SP_bar_shp_t_av_gdf = gdf_shp
             plt.show()
+
         return self
+        
         
     def plot_spatial_processed(self,results,column,title,**kwargs):
         results.plot(kind = 'bar',rot=45)
         plt.ylabel(title)
+        plt.tight_layout()
         plt.show()
         
         if 'shapefile' in kwargs:
@@ -1005,6 +1022,14 @@ class IOM:
                 joined_gdf = gdf_shp.merge(
                     results, left_on=shpid, right_index = True, how='left')   
             fig, ax = plt.subplots(1,1,figsize=(6, 10))
+            if 'background_shp' in kwargs:
+                gdf_bground = gpd.read_file(kwargs['background_shp'])
+                gdf_bground.plot(
+                    facecolor='none',
+                    edgecolor='black',
+                    linewidth=0.5,  # Control the thickness of the border
+                    ax=ax,
+                    )
             joined_gdf.plot(
                 column = column,
                 cmap = 'plasma',
@@ -1013,4 +1038,7 @@ class IOM:
                 ax=ax)
             ax.tick_params(axis='both', labelsize=8)
             ax.xaxis.get_offset_text().set_fontsize(8)
+            fig.tight_layout()
             plt.show()
+        self.plot_spatial_processed_gdf = joined_gdf
+        return self
