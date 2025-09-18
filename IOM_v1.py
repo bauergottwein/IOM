@@ -36,6 +36,10 @@ class IOM:
         self.wfid_item = 'WFID'
         self.wf_maxpump_item = 'AnlgTillad (1000 m3/yr)'
         self.wf_pumpcost_item = 'Pumping cost (DKK/m3)'
+        # Column names of new water sources table
+        self.nwsid_item = 'NWSID'
+        self.nws_capacity_item = 'Capacity (1000 m3/yr)'
+        self.nws_production_cost_item = 'Production cost (DKK/m3)'
         # Column names of waterworks table
         self.wwid_item = 'WWID'
         self.ww_storage_cap_item = 'Storage capacity (1000m3)'
@@ -67,11 +71,16 @@ class IOM:
                
         self.catchment_data = pd.read_excel(self.catchment_table)  
         self.WF = pd.read_excel(self.wellfields_table)
+        self.WW = pd.read_excel(self.waterworks_table)
+        if self.new_water_sources:
+            self.NWS = pd.read_excel(self.new_water_sources_table)
         self.WW=pd.read_excel(self.waterworks_table)
         self.WSA=pd.read_excel(self.wsa_table)
         self.WF_WW=pd.read_excel(self.wf_ww_table) 
         self.WW_WSA=pd.read_excel(self.ww_wsa_table)
         self.WW_WW=pd.read_excel(self.ww_ww_table)
+        if self.new_water_sources:
+            self.NWS_WW = pd.read_excel(self.nws_ww_table)
         
         self.ncatch = np.array(self.catchment_data[self.catchid_item])
         
@@ -106,6 +115,8 @@ class IOM:
         self.nwsa = np.array(self.WSA[self.wsaid_item])
         self.nww = np.array(self.WW[self.wwid_item])
         self.nwf = np.array(self.WF[self.wfid_item])
+        if self.new_water_sources:
+            self.nnws = np.array(self.NWS[self.nwsid_item])
         self.nusers = self.water_users
         
         # =============================================================================
@@ -115,6 +126,8 @@ class IOM:
         self.nwf_ww = list(self.WF_WW[[self.wfid_item,self.wwid_item]].itertuples(index=False, name=None))
         self.nww_wsa = list(self.WW_WSA.itertuples(index=False, name=None))
         self.nww_ww = list(self.WW_WW.loc[:,[self.WW1_item,self.WW2_item]].itertuples(index=False, name=None))
+        if self.new_water_sources:
+            self.nnws_ww = list(self.NWS_WW[[self.nwsid_item,self.wwid_item]].itertuples(index=False, name=None))
             
         # =============================================================================
         # Linear reservoirs initial parameters
@@ -156,7 +169,7 @@ class IOM:
                 self.I_inflow[c,t] = self.inflow[c-1,t-1]
                 
         # =============================================================================
-        # Max pumping capacity
+        # Max pumping capacity and pumping cost
         # =============================================================================
         
         self.maxpump = dict()
@@ -164,6 +177,17 @@ class IOM:
         for wf in self.nwf:
             self.maxpump[wf] = self.WF.loc[self.WF[self.wfid_item] == wf, self.wf_maxpump_item].values[0]   # yearly maxpump 1000m3
             self.pumping_cost[wf] = self.WF.loc[self.WF[self.wfid_item] == wf, self.wf_pumpcost_item].values[0]
+            
+        # =============================================================================
+        # Max production capacity and production cost for NWS
+        # =============================================================================
+        
+        if self.new_water_sources:
+            self.maxprod = dict()
+            self.prod_cost = dict()
+            for nws in self.nnws:
+                self.maxprod[nws] = self.NWS.loc[self.NWS[self.nwsid_item] == nws, self.nws_capacity_item].values[0]   # yearly maxpump 1000m3
+                self.prod_cost[nws] = self.NWS.loc[self.NWS[self.nwsid_item] == nws, self.nws_production_cost_item].values[0]
         
         # =============================================================================
         # Storage capacity and initial storage of WaterWorks
@@ -263,7 +287,10 @@ class IOM:
         self.model.nwf_ww = pyo.Set(dimen=2,initialize=self.nwf_ww) # define index for all wf-ww connections
         self.model.nww_wsa = pyo.Set(dimen=2,initialize=self.nww_wsa) # define index for all ww-wsa connections
         self.model.nww_ww = pyo.Set(dimen=2,initialize=self.nww_ww) # define index for all ww-ww connections
-        
+        if self.new_water_sources:
+            self.model.nnws = pyo.Set(dimen=1,initialize=self.nnws)
+            self.model.nnws_ww = pyo.Set(dimen=2,initialize=self.nnws_ww)
+            
         # =============================================================================
         # Declare decision variables - decision variable values will be provided by the optimizer
         # =============================================================================
@@ -284,7 +311,10 @@ class IOM:
         self.model.Exchange_WW_WW  = pyo.Var(self.model.nww_ww, self.model.ntimes, within=pyo.NonNegativeReals) # Water transfer from 1 anlaeg to another, therefore 2 times nanlaeg, 1000m3 per weekly time step
         
         self.model.Supply_WW_WSA = pyo.Var(self.model.nww_wsa, self.model.ntimes, within=pyo.NonNegativeReals) # Water Supply distributed by each Waterworks to all the WSA it serves
-                
+        
+        if self.new_water_sources:
+            self.model.Prod_NWS = pyo.Var(self.model.nnws, self.model.ntimes, within=pyo.NonNegativeReals)
+            self.model.Supply_NWS_WW = pyo.Var(self.model.nnws_ww, self.model.ntimes, within=pyo.NonNegativeReals)
         # =============================================================================
         # Declare parameters
         # =============================================================================
@@ -309,6 +339,9 @@ class IOM:
         self.model.inflow = pyo.Param(self.model.ncatch, self.model.ntimes,within=pyo.Reals,initialize = self.I_inflow) # Set inflow to GW to for all catchments (from MIKE SHE model)
         self.model.minbflow = pyo.Param(self.model.ncatch,within=pyo.Reals,initialize = self.minbf) # Set environmental constraint on flow for all catchments
         self.model.bf_comp_pump_cost = pyo.Param(self.model.ncatch, within=pyo.NonNegativeReals,initialize = self.bf_comp_pump_cost)
+        if self.new_water_sources:
+            self.model.max_prod_nws = pyo.Param(self.model.nnws, within=pyo.NonNegativeReals,initialize = self.maxprod)  # Production capacity 1000 m3/week
+            self.model.prod_cost_nws = pyo.Param(self.model.nnws,within=pyo.NonNegativeReals, initialize = self.prod_cost)   # Production cost in DKK/m3 or thousand DKK/1000m3
         
         return self
         
@@ -327,7 +360,11 @@ class IOM:
             Pump_cost = sum(model.pumping_cost[wf] * model.Pump_WF[wf,t]  for wf in model.nwf for t in model.ntimes) + sum(
                 model.bf_comp_pump_cost[c] * model.Pump_GW_to_BF[c,t] for c in model.ncatch for t in model.ntimes)
             Exchange_cost = sum(model.exchange_cost[ww_ww]*model.Exchange_WW_WW[ww_ww,t] for ww_ww in model.nww_ww for t in model.ntimes)
-            return User_ben - Pump_cost - Exchange_cost 
+            if self.new_water_sources:
+                Prod_cost = sum(model.prod_cost_nws[nws] * model.Prod_NWS[nws,t]  for nws in model.nnws for t in model.ntimes)
+            else:
+                Prod_cost = 0
+            return User_ben - Pump_cost - Exchange_cost - Prod_cost
         self.model.obj = pyo.Objective(rule=obj_rule, sense = pyo.maximize)
         
         # =============================================================================
@@ -362,6 +399,13 @@ class IOM:
             return sum(model.Pump_WF[wf,t] for t in list_weeks) <= model.maxpump_WF[wf]
         self.model.pumping_WF = pyo.Constraint(self.model.nwf, self.model.nyear, rule=pumping_WF_c)
         
+        # Production for each new water source always below capacity
+        def prod_NWS_c(model, nws, t):
+            return model.Prod_NWS[nws,t] <= model.max_prod_nws[nws]
+        
+        if self.new_water_sources:
+            self.model.prod_NWS = pyo.Constraint(self.model.nnws, self.model.ntimes, rule=prod_NWS_c)
+        
         
         # =============================================================================
         # WaterBalance at the Wellfields, WaterWorks and WSA level
@@ -381,6 +425,20 @@ class IOM:
                 for idx in indices_to_sum
                 ) == model.Pump_WF[wf,t]
         self.model.wb_WF = pyo.Constraint(self.model.nwf, self.model.ntimes, rule=wb_WF_c)
+        
+        # At the NWS level
+        def wb_NWS_c(model,nws,t):
+            # At the WF level
+            indices_to_sum = [
+                idx for idx in model.nnws_ww
+                if idx[0] == nws
+                ]
+            return sum(
+                model.Supply_NWS_WW[idx, t]
+                for idx in indices_to_sum
+                ) == model.Prod_NWS[nws,t]
+        if self.new_water_sources:
+            self.model.wb_NWS = pyo.Constraint(self.model.nnws, self.model.ntimes, rule=wb_NWS_c)
         
         # DeltaStorage = sum(Pumping)  +- Exchange  - Supply_WW_to_WSA
         
@@ -403,6 +461,16 @@ class IOM:
                 idx for idx in model.nww_ww
                 if idx[1] == ww
                 ]
+            sumnws = 0
+            if self.new_water_sources:
+                nws_indices_to_sum = [
+                    idx for idx in model.nnws_ww
+                    if idx[1] == ww
+                    ]
+                sumnws = sum(
+                    model.Supply_NWS_WW[idx, t]
+                    for idx in nws_indices_to_sum
+                )
             if t == 1:
                 return model.Storage_WW[ww,t] - model.Storage_WW_ini[ww] == sum(
                     model.Supply_WF_WW[idx, t]
@@ -416,7 +484,7 @@ class IOM:
                 ) + sum(
                     model.Exchange_WW_WW[idx, t]
                     for idx in ex2_indices_to_sum
-                )
+                ) + sumnws
             else:
                 return model.Storage_WW[ww,t] - model.Storage_WW[ww,t-1] == sum(
                     model.Supply_WF_WW[idx, t]
@@ -430,7 +498,7 @@ class IOM:
                 ) + sum(
                     model.Exchange_WW_WW[idx, t]
                     for idx in ex2_indices_to_sum
-                )
+                ) + sumnws
           
         self.model.wb_WW = pyo.Constraint(self.model.nww, self.model.ntimes, rule=wb_WW_c)
         
@@ -599,6 +667,9 @@ class IOM:
         optimal_Exchange_WW_WW = np.zeros((len(self.model.ntimes),len(self.model.nww_ww)))
         optimal_Supply_WW_WSA = np.zeros((len(self.model.ntimes),len(self.model.nww_wsa)))
         optimal_Supply_WF_WW = np.zeros((len(self.model.ntimes),len(self.model.nwf_ww)))
+        if self.new_water_sources:
+            optimal_Prod_NWS = np.zeros((len(self.model.ntimes),len(self.model.nnws)))
+            optimal_Supply_NWS_WW = np.zeros((len(self.model.ntimes),len(self.model.nnws_ww)))
         
         for t in self.model.ntimes:   
             for w in range(len(self.nwsa)):
@@ -626,6 +697,12 @@ class IOM:
                 
             for i in range(1, len(self.model.nwf_ww)+1):
                 optimal_Supply_WF_WW[t-1,i-1] = pyo.value(self.model.Supply_WF_WW[self.model.nwf_ww.at(i),t])
+                
+            if self.new_water_sources:
+                for i in range(1,len(self.model.nnws)+1):
+                    optimal_Prod_NWS[t-1,i-1] = pyo.value(self.model.Prod_NWS[self.model.nnws.at(i),t])
+                for i in range(1, len(self.model.nnws_ww)+1):
+                    optimal_Supply_NWS_WW[t-1,i-1] = pyo.value(self.model.Supply_NWS_WW[self.model.nnws_ww.at(i),t])
         
         # =============================================================================
         # Convert to DataFrame and save
@@ -649,7 +726,15 @@ class IOM:
         
         optimal_time = pd.DataFrame({'time':[t for t in self.model.ntimes]}, index=self.model.ntimes)
         
-        self.optimal_Decisions = pd.concat([optimal_time, optimal_Storage_WW, optimal_Pump_WF, optimal_Pump_catch, optimal_Pump_GW_to_BF, optimal_Q_base, optimal_Storage_LinRes, optimal_Exchange_WW_WW, optimal_Supply_WW_WSA,optimal_Supply_WF_WW]+list_of_alloc_dfs, axis=1) 
+        self.optimal_Decisions = pd.concat([optimal_time, optimal_Storage_WW, optimal_Pump_WF, optimal_Pump_catch, optimal_Pump_GW_to_BF, optimal_Q_base, 
+                                            optimal_Storage_LinRes, optimal_Exchange_WW_WW, optimal_Supply_WW_WSA,optimal_Supply_WF_WW]+list_of_alloc_dfs, axis=1) 
+        if self.new_water_sources:
+            optimal_Prod_NWS = pd.DataFrame(optimal_Prod_NWS, index=self.model.ntimes, columns=['Prod_NWS_'+str(w) for w in self.model.nnws])
+            optimal_Supply_NWS_WW = pd.DataFrame(optimal_Supply_NWS_WW, index=self.model.ntimes, columns=['Supply_'+str(c) for c in self.model.nnws_ww])
+            self.optimal_Decisions = pd.concat([optimal_time, optimal_Storage_WW, optimal_Pump_WF, optimal_Pump_catch, optimal_Pump_GW_to_BF, optimal_Q_base, 
+                                                optimal_Storage_LinRes, optimal_Exchange_WW_WW, optimal_Supply_WW_WSA,optimal_Supply_WF_WW, optimal_Prod_NWS, 
+                                                optimal_Supply_NWS_WW]+list_of_alloc_dfs, axis=1)
+            
         self.optimal_Decisions.to_excel(self.dec_outfile,sheet_name = 'Decision variables')
         
 
@@ -664,6 +749,8 @@ class IOM:
         SP_wb_WW = np.zeros((len(self.model.ntimes),len(self.model.nww)))
         SP_wb_WW_Storage = np.zeros((len(self.model.ntimes),len(self.model.nww)))
         SP_wb_WW_Exchange = np.zeros((len(self.model.ntimes),len(self.model.nww_ww)))
+        if self.new_water_sources:
+            SP_prod_NWS = np.zeros((len(self.model.ntimes),len(self.model.nnws)))
         
         # and Supply_WW_WSA ???
         
@@ -689,6 +776,10 @@ class IOM:
                 
             for i in range(1, len(self.model.nww_ww)+1):
                 SP_wb_WW_Exchange[t-1,i-1] = self.model.dual[self.model.wb_WW_Exchange[self.model.nww_ww.at(i),t]]
+                
+            if self.new_water_sources:
+                for i in range(1,len(self.model.nnws)+1):
+                    SP_prod_NWS[t-1,i-1] = self.model.dual[self.model.prod_NWS[self.model.nnws.at(i),t]]
         
         for y in self.model.nyear:
             for i in range(1,len(self.model.nwf)+1):
@@ -714,6 +805,8 @@ class IOM:
         SP_wb_WW_Storage = pd.DataFrame(SP_wb_WW_Storage, index=self.model.ntimes, columns=['SP_wb_WW_Storage_'+str(w) for w in self.model.nww])
         SP_wb_WW_Exchange = pd.DataFrame(SP_wb_WW_Exchange, index=self.model.ntimes, columns=['SP_wb_WW_Exchange_'+str(w) for w in self.model.nww_ww])
         SP_pumping_WF = pd.DataFrame(SP_pumping_WF, index=self.model.nyear, columns=['SP_pumping_WF_'+str(w) for w in self.model.nwf])
+        if self.new_water_sources:
+            SP_prod_NWS = pd.DataFrame(SP_prod_NWS, index=self.model.ntimes, columns=['SP_prod_NWS_'+str(w) for w in self.model.nnws])
         
         SP_lin_res = pd.DataFrame(SP_lin_res, index=self.model.ntimes, columns=['SP_lin_res_'+str(c) for c in self.model.ncatch])
         SP_min_bf = pd.DataFrame(SP_min_bf, index=self.model.nyear, columns=['SP_min_bf_'+str(c) for c in self.model.ncatch])
@@ -723,9 +816,15 @@ class IOM:
         
         SP_time = pd.DataFrame({'time':[t for t in self.model.ntimes]}, index=self.model.ntimes)
         if self.gw_ind_2_in_use:
-            self.SPs = pd.concat([SP_time, SP_wb_WW, SP_wb_WW_Storage, SP_wb_WW_Exchange, SP_pumping_WF, SP_lin_res, SP_min_bf, SP_gw_ind_2] + list_of_SP_dfs, axis=1) 
+            if self.new_water_sources:
+                self.SPs = pd.concat([SP_time, SP_wb_WW, SP_wb_WW_Storage, SP_wb_WW_Exchange, SP_pumping_WF, SP_lin_res, SP_min_bf, SP_gw_ind_2, SP_prod_NWS] + list_of_SP_dfs, axis=1)
+            else:
+                self.SPs = pd.concat([SP_time, SP_wb_WW, SP_wb_WW_Storage, SP_wb_WW_Exchange, SP_pumping_WF, SP_lin_res, SP_min_bf, SP_gw_ind_2] + list_of_SP_dfs, axis=1) 
         else:
-            self.SPs = pd.concat([SP_time, SP_wb_WW, SP_wb_WW_Storage, SP_wb_WW_Exchange, SP_pumping_WF, SP_lin_res, SP_min_bf] + list_of_SP_dfs, axis=1) 
+            if self.new_water_sources:
+                self.SPs = pd.concat([SP_time, SP_wb_WW, SP_wb_WW_Storage, SP_wb_WW_Exchange, SP_pumping_WF, SP_lin_res, SP_min_bf, SP_prod_NWS] + list_of_SP_dfs, axis=1) 
+            else:
+                self.SPs = pd.concat([SP_time, SP_wb_WW, SP_wb_WW_Storage, SP_wb_WW_Exchange, SP_pumping_WF, SP_lin_res, SP_min_bf] + list_of_SP_dfs, axis=1) 
         self.SPs.to_excel(self.sp_outfile,sheet_name = 'Shadow prices')
             
         #********************************************************************************

@@ -25,16 +25,19 @@ Run_attributes['catchment_shp'] = r'c:\Users\vpk410\Documents\GW_allocation_mode
 Run_attributes['wellfields_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\wellfields_active.xlsx'
 Run_attributes['wellfields_shp'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\Wellfields_active.shp' 
 
-Run_attributes['waterworks_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\waterworks_active.xlsx'
-Run_attributes['waterworks_shp'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\Waterworks_active.shp' 
+Run_attributes['waterworks_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\waterworks_active_nws.xlsx'
+Run_attributes['waterworks_shp'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\Waterworks_active_nws.shp' 
 
 Run_attributes['wsa_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\water_supply_areas_2019.xlsx'
 Run_attributes['wsa_shp'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\WSA_capital_2019.shp'
 
 Run_attributes['wf_ww_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WF_WW_v2_active.xlsx'
-Run_attributes['ww_wsa_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WW_WSA_2019_no_redundancy_active.xlsx'
+Run_attributes['ww_wsa_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WW_WSA_2019_no_redundancy_active_nws.xlsx'
 Run_attributes['ww_ww_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\WW_WW_v2_active.xlsx'
 
+Run_attributes['new_water_sources'] = True
+Run_attributes['new_water_sources_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\new_water_sources.xlsx'
+Run_attributes['nws_ww_table'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Input data model\NWS_WW.xlsx'
 
 Run_attributes['savepath'] = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Results'
 
