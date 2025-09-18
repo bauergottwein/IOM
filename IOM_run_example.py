@@ -104,7 +104,8 @@ max_values = sp_mean_df.groupby('sorted_key').agg({
     'sp': 'max',  # This finds the maximum of the 'sp' column
     'unique_key': 'first'
     })
+max_values = max_values.set_index('unique_key')
 #%%    
-IOM_run = IOM_run.plot_spatial_processed(max_values , column = 'sp',title = 'Transfer capacity shadow price, DKK/m3/week', 
+IOM_run = IOM_run.plot_spatial_processed(max_values['sp'] , column = 'sp',title = 'Transfer capacity shadow price, DKK/m3/week', 
                                shapefile = r'c:\Users\vpk410\Documents\GW_allocation_model-main\Shapefiles\ww_ww_lines_v2.shp', 
                                shpid = 'unique_key',joincol = 'unique_key',background_shp = IOM_run.catchment_shp)

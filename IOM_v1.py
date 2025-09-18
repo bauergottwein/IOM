@@ -1058,8 +1058,8 @@ class IOM:
                 ax=ax)
             ax.tick_params(axis='both', labelsize=8)
             ax.xaxis.get_offset_text().set_fontsize(8)
-            plt.show()
             self.plot_dvar_bar_shp_t_av_gdf = gdf_shp
+            plt.show()
         return self
     
     def plot_SP_bar_shp_t_av(self,base_str,indeces,**kwargs):
@@ -1105,6 +1105,7 @@ class IOM:
         
         
     def plot_spatial_processed(self,results,column,title,**kwargs):
+        plt.figure()
         results.plot(kind = 'bar',rot=45)
         plt.ylabel(title)
         plt.tight_layout()
@@ -1138,6 +1139,6 @@ class IOM:
             ax.tick_params(axis='both', labelsize=8)
             ax.xaxis.get_offset_text().set_fontsize(8)
             fig.tight_layout()
-            plt.show()
         self.plot_spatial_processed_gdf = joined_gdf
+        plt.show()
         return self
